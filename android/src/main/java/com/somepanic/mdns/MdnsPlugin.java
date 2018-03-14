@@ -42,9 +42,6 @@ public class MdnsPlugin implements MethodCallHandler {
     private ServiceResolvedHandler mResolvedHandler;
     MdnsPlugin(Registrar r) {
 
-        final MethodChannel channel = new MethodChannel(r.messenger(), NAMESPACE + "/mdns");
-        channel.setMethodCallHandler(this);
-
         EventChannel serviceDiscoveredChannel = new EventChannel(r.messenger(), NAMESPACE + "/discovered");
         mDiscoveredHandler = new ServiceDiscoveredHandler();
         serviceDiscoveredChannel.setStreamHandler(mDiscoveredHandler);
@@ -56,6 +53,9 @@ public class MdnsPlugin implements MethodCallHandler {
         EventChannel discoveryRunning = new EventChannel(r.messenger(), NAMESPACE + "/running");
         mDiscoveryRunningHandler = new DiscoveryRunningHandler();
         discoveryRunning.setStreamHandler(mDiscoveryRunningHandler);
+
+        final MethodChannel channel = new MethodChannel(r.messenger(), NAMESPACE + "/mdns");
+        channel.setMethodCallHandler(this);
 
         mRegistrar = r;
     }
