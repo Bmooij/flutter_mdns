@@ -6,6 +6,7 @@ import android.net.nsd.NsdServiceInfo;
 import android.util.Log;
 import com.somepanic.mdns.handlers.DiscoveryRunningHandler;
 import com.somepanic.mdns.handlers.ServiceDiscoveredHandler;
+import com.somepanic.mdns.handlers.ServiceLostHandler;
 import com.somepanic.mdns.handlers.ServiceResolvedHandler;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodChannel;
@@ -40,6 +41,7 @@ public class MdnsPlugin implements MethodCallHandler {
     private DiscoveryRunningHandler mDiscoveryRunningHandler;
     private ServiceDiscoveredHandler mDiscoveredHandler;
     private ServiceResolvedHandler mResolvedHandler;
+    private ServiceLostHandler mLostHandler;
     MdnsPlugin(Registrar r) {
 
         EventChannel serviceDiscoveredChannel = new EventChannel(r.messenger(), NAMESPACE + "/discovered");
@@ -49,6 +51,10 @@ public class MdnsPlugin implements MethodCallHandler {
         EventChannel serviceResolved = new EventChannel(r.messenger(), NAMESPACE + "/resolved");
         mResolvedHandler = new ServiceResolvedHandler();
         serviceResolved.setStreamHandler(mResolvedHandler);
+
+        EventChannel serviceLost = new EventChannel(r.messenger(), NAMESPACE + "/lost");
+        mLostHandler = new ServiceLostHandler();
+        serviceLost.setStreamHandler(mLostHandler);
 
         EventChannel discoveryRunning = new EventChannel(r.messenger(), NAMESPACE + "/running");
         mDiscoveryRunningHandler = new DiscoveryRunningHandler();
@@ -141,6 +147,7 @@ public class MdnsPlugin implements MethodCallHandler {
             @Override
             public void onServiceLost(NsdServiceInfo nsdServiceInfo) {
                 Log.d(TAG, "Lost Service : " + nsdServiceInfo.toString());
+                mLostHandler.onServiceLost(ServiceToMap(nsdServiceInfo));
             }
         };
 

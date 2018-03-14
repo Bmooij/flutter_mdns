@@ -18,12 +18,6 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     discoveryCallbacks = new DiscoveryCallbacks(
-      onDiscovered: (ServiceInfo info){
-        print("Discovered ${info.toString()}");
-        setState((){
-          messageLog.insert(0, "DISCOVERY: Discovered ${info.toString()}");
-        });
-      },
       onDiscoveryStarted: (){
         print("Discovery started");
         setState((){messageLog.insert(0, "DISCOVERY: Discovery Running");});
@@ -32,12 +26,24 @@ class _MyAppState extends State<MyApp> {
         print("Discovery stopped");
         setState((){messageLog.insert(0, "DISCOVERY: Discovery Not Running");});
       },
+      onDiscovered: (ServiceInfo info){
+        print("Discovered ${info.toString()}");
+        setState((){
+          messageLog.insert(0, "DISCOVERY: Discovered ${info.toString()}");
+        });
+      },
       onResolved: (ServiceInfo info){
         print("Resolved Service ${info.toString()}");
         setState((){
           messageLog.insert(0, "DISCOVERY: Resolved ${info.toString()}");
         });
       },
+      onLost: (ServiceInfo info) {
+        print("Lost Service ${info.toString()}");
+        setState((){
+          messageLog.insert(0, "DISCOVERY: Lost ${info.toString()}");
+        });
+      }
     );
 
 

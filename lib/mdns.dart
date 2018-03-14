@@ -47,11 +47,14 @@ class DiscoveryCallbacks{
   VoidCallback onDiscoveryStopped;
   ServiceInfoCallback onDiscovered;
   ServiceInfoCallback onResolved;
+  ServiceInfoCallback onLost;
+
   DiscoveryCallbacks({
     this.onDiscoveryStarted,
     this.onDiscoveryStopped,
     this.onDiscovered,
     this.onResolved,
+    this.onLost,
   });
 }
 
@@ -72,13 +75,16 @@ class Mdns {
   const MethodChannel('$NAMESPACE/mdns');
 
   final EventChannel _serviceDiscoveredChannel =
-      const EventChannel("$NAMESPACE/discovered");
+  const EventChannel("$NAMESPACE/discovered");
 
   final EventChannel _serviceResolvedChannel =
-    const EventChannel("$NAMESPACE/resolved");
+  const EventChannel("$NAMESPACE/resolved");
+
+  final EventChannel _serviceLostChannel =
+  const EventChannel("$NAMESPACE/lost");
 
   final EventChannel _discoveryRunningChannel =
-    const EventChannel("$NAMESPACE/running");
+  const EventChannel("$NAMESPACE/running");
 
   DiscoveryCallbacks discoveryCallbacks;
   AdvertiseCallbacks advertiseCallbacks;
@@ -86,17 +92,28 @@ class Mdns {
 
     if ( discoveryCallbacks != null ) {
       //Configure all the discovery related callbacks and event channels
-      _serviceResolvedChannel.receiveBroadcastStream().listen((Map data) {
-        print("Service resolved ${data.toString()}");
-        discoveryCallbacks.onResolved(ServiceInfo.fromMap(data));
-      });
-
-      _serviceDiscoveredChannel.receiveBroadcastStream().listen((Map data) {
+      _serviceDiscoveredChannel.receiveBroadcastStream().listen((data) {
         print("Service discovered ${data.toString()}");
-        discoveryCallbacks.onDiscovered(ServiceInfo.fromMap(data));
+        if (discoveryCallbacks.onDiscovered != null) {
+          discoveryCallbacks.onDiscovered(ServiceInfo.fromMap(data));
+        }
       });
 
-      _discoveryRunningChannel.receiveBroadcastStream().listen((bool running) {
+      _serviceResolvedChannel.receiveBroadcastStream().listen((data) {
+        print("Service resolved ${data.toString()}");
+        if (discoveryCallbacks.onResolved != null) {
+          discoveryCallbacks.onResolved(ServiceInfo.fromMap(data));
+        }
+      });
+
+      _serviceLostChannel.receiveBroadcastStream().listen((data) {
+        print("Service lost ${data.toString()}");
+        if (discoveryCallbacks.onLost != null) {
+          discoveryCallbacks.onLost(ServiceInfo.fromMap(data));
+        }
+      });
+
+      _discoveryRunningChannel.receiveBroadcastStream().listen((running) {
         print("Discovery Running? $running");
         if (running && discoveryCallbacks.onDiscoveryStarted != null) {
           discoveryCallbacks.onDiscoveryStarted();
