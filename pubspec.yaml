@@ -1,5 +1,5 @@
 name: mdns
-description: A Flutter plugin for mDNS&#x2F;DNS-SD discovery and advertising.
+description: A Flutter plugin for mDNS/DNS-SD discovery and advertising.
 version: 0.0.1
 author: John Anderson <john@iminate.com>
 homepage: https://github.com/platinumjam/flutter_mdns
