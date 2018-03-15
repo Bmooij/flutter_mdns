@@ -128,14 +128,14 @@ class Mdns {
     }
   }
 
-  startDiscovery(String serviceType) {
+  Mdns startDiscovery(String serviceType) {
     Map args = new Map();
     args["serviceType"] = serviceType;
     _channel.invokeMethod("startDiscovery", args);
     return this;
   }
 
-  stopDiscovery(){
+  Mdns stopDiscovery(){
     _channel.invokeMethod("stopDiscovery", new Map());
     return this;
   }
