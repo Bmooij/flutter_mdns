@@ -42,6 +42,7 @@ public class MdnsPlugin implements MethodCallHandler {
     private ServiceDiscoveredHandler mDiscoveredHandler;
     private ServiceResolvedHandler mResolvedHandler;
     private ServiceLostHandler mLostHandler;
+
     MdnsPlugin(Registrar r) {
 
         EventChannel serviceDiscoveredChannel = new EventChannel(r.messenger(), NAMESPACE + "/discovered");
@@ -172,11 +173,8 @@ public class MdnsPlugin implements MethodCallHandler {
         Map<String, Object> map = new HashMap<>();
 
         map.put("name", info.getServiceName() != null ? info.getServiceName() : "");
-
         map.put("type", info.getServiceType() != null ? info.getServiceType() : "");
-
         map.put("host", info.getHost() != null ? info.getHost().toString() : "");
-
         map.put("port", info.getPort());
 
         return map;
