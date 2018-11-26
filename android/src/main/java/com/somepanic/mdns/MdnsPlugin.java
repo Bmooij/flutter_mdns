@@ -15,6 +15,8 @@ import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
+import java.util.concurrent.Semaphore;
+import java.util.LinkedList;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -43,7 +45,15 @@ public class MdnsPlugin implements MethodCallHandler {
     private ServiceResolvedHandler mResolvedHandler;
     private ServiceLostHandler mLostHandler;
 
+    private LinkedList<NsdServiceInfo> mToResolve;
+    private Semaphore mResolveSemaphore;
+    private boolean mResolving;
+
     MdnsPlugin(Registrar r) {
+
+        mToResolve = new LinkedList<NsdServiceInfo>();
+        mResolveSemaphore = new Semaphore(1);
+        mResolving = false;
 
         EventChannel serviceDiscoveredChannel = new EventChannel(r.messenger(), NAMESPACE + "/discovered");
         mDiscoveredHandler = new ServiceDiscoveredHandler();
@@ -95,6 +105,40 @@ public class MdnsPlugin implements MethodCallHandler {
         }
     }
 
+    private void _checkResolve() {
+        mResolveSemaphore.acquireUninterruptibly();
+        if (mToResolve.isEmpty() || mResolving) {
+            mResolveSemaphore.release();
+            return;
+        }
+
+        NsdServiceInfo nsdServiceInfo = mToResolve.removeFirst();
+        mResolving = true;
+        mResolveSemaphore.release();
+
+        Log.d(TAG, "Resolve service : " + nsdServiceInfo.toString());
+        mNsdManager.resolveService(nsdServiceInfo, new NsdManager.ResolveListener() {
+            @Override
+            public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
+                Log.d(TAG, "Failed to resolve service : " + i + ": " + nsdServiceInfo.toString());
+                mResolveSemaphore.acquireUninterruptibly();
+                mResolving = false;
+                mResolveSemaphore.release();
+                _checkResolve();
+            }
+
+            @Override
+            public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
+                Log.d(TAG, "Resolved service : " + nsdServiceInfo.toString());
+                mResolvedHandler.onServiceResolved(ServiceToMap(nsdServiceInfo));
+                mResolveSemaphore.acquireUninterruptibly();
+                mResolving = false;
+                mResolveSemaphore.release();
+                _checkResolve();
+            }
+        });
+    }
+
     private void _startDiscovery(String serviceName){
 
         mNsdManager = (NsdManager)mRegistrar.activity().getSystemService(Context.NSD_SERVICE);
@@ -132,17 +176,10 @@ public class MdnsPlugin implements MethodCallHandler {
                 Log.d(TAG, "Found Service : " + nsdServiceInfo.toString());
                 mDiscoveredHandler.onServiceDiscovered(ServiceToMap(nsdServiceInfo));
 
-                mNsdManager.resolveService(nsdServiceInfo, new NsdManager.ResolveListener() {
-                    @Override
-                    public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
-                        Log.d(TAG, "Failed to resolve service : " + nsdServiceInfo.toString());
-                    }
-
-                    @Override
-                    public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
-                        mResolvedHandler.onServiceResolved(ServiceToMap(nsdServiceInfo));
-                    }
-                });
+                mResolveSemaphore.acquireUninterruptibly();
+                mToResolve.add(nsdServiceInfo);
+                mResolveSemaphore.release();
+                _checkResolve();
             }
 
             @Override
