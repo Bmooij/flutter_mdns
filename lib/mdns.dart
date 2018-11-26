@@ -5,13 +5,15 @@ class ServiceInfo{
   String type;
   String host;
   int port;
-  ServiceInfo(this.name, this.type, this.host, this.port);
+  Map<dynamic, dynamic> txtRecords;
+  ServiceInfo(this.name, this.type, this.host, this.port, this.txtRecords);
 
   static ServiceInfo fromMap(Map fromChannel){
     String name = "";
     String type = "";
     String host = "";
     int port = 0;
+    Map <dynamic, dynamic> txtRecords;
 
     if ( fromChannel.containsKey("name") ) {
       name = fromChannel["name"];
@@ -29,12 +31,16 @@ class ServiceInfo{
       port = fromChannel["port"];
     }
 
-    return new ServiceInfo(name, type, host, port);
+    if (fromChannel.containsKey("txtRecords")) {
+      txtRecords = fromChannel["txtRecords"];
+    }
+
+    return new ServiceInfo(name, type, host, port, txtRecords);
   }
 
   @override
   String toString(){
-    return "Name: $name, Type: $type, Host: $host, Port: $port";
+    return "Name: $name, Type: $type, Host: $host, Port: $port, txtRecords: $txtRecords";
   }
 }
 typedef void ServiceInfoCallback(ServiceInfo info);

@@ -214,6 +214,12 @@ public class MdnsPlugin implements MethodCallHandler {
         map.put("host", info.getHost() != null ? info.getHost().toString() : "");
         map.put("port", info.getPort());
 
+        Map<String, String> txtRecords = new HashMap<>();
+        for (Map.Entry<String, byte[]> attribute: info.getAttributes().entrySet())
+            txtRecords.put(attribute.getKey(),
+                    attribute.getValue() != null ? new String(attribute.getValue()) : "");
+        map.put("txtRecords", txtRecords);
+
         return map;
     }
 }
