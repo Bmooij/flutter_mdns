@@ -20,7 +20,7 @@ public class SwiftMdnsPlugin: NSObject, FlutterPlugin, NetServiceBrowserDelegate
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let NAMESPACE = "com.somepanic.mdns";
-        
+
         let channel = FlutterMethodChannel.init(name: NAMESPACE + "/mdns", binaryMessenger: registrar.messenger())
         let instance = SwiftMdnsPlugin()
 
@@ -114,7 +114,7 @@ public class SwiftMdnsPlugin: NSObject, FlutterPlugin, NetServiceBrowserDelegate
     public func netServiceBrowserDidStopSearch(_ browser: NetServiceBrowser) {
         running(false);
     }
-    
+
     var services = Set<NetService>();
     public func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
         services.insert(service);
@@ -137,7 +137,7 @@ public class SwiftMdnsPlugin: NSObject, FlutterPlugin, NetServiceBrowserDelegate
         }
         return "";
     }
-    
+
     private func serviceToMap(service: NetService) -> Dictionary<String, Any> {
         var res = [String:Any]()
         res["name"] = service.name
