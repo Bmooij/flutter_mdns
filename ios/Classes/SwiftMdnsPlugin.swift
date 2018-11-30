@@ -146,6 +146,12 @@ public class SwiftMdnsPlugin: NSObject, FlutterPlugin, NetServiceBrowserDelegate
             res["host"] = "/" + ipString(from: addresses);
         }
         res["port"] = service.port
+        let txtRecordDict = NetService.dictionary(fromTXTRecord: service.txtRecordData()!)
+        var txtRecord = [String : String]()
+        for (key, value) in txtRecordDict {
+            txtRecord[key] = String(data: value, encoding: .utf8)
+        }
+        res["txtRecords"] = txtRecord
         return res
     }
 
