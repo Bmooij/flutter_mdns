@@ -130,6 +130,10 @@ public class SwiftMdnsPlugin: NSObject, FlutterPlugin, NetServiceBrowserDelegate
     }
 
     private func ipString(from: [Data]) -> String {
+        if (from.isEmpty) {
+            return "";
+        }
+
         let theAddress = from.first! as NSData;
         var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
         if getnameinfo(theAddress.bytes.assumingMemoryBound(to: sockaddr.self), socklen_t(theAddress.length), &hostname, socklen_t(hostname.count), nil, 0, NI_NUMERICHOST) == 0 {
