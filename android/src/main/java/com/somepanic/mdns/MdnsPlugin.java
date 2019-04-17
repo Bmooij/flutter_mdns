@@ -1,9 +1,17 @@
 package com.somepanic.mdns;
 
 import android.content.Context;
-import android.net.nsd.NsdManager;
-import android.net.nsd.NsdServiceInfo;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
+import rx.Observable;
+import rx.Subscription;
+import rx.functions.Action1;
+import com.github.druk.rxdnssd.BonjourService;
+import com.github.druk.rxdnssd.RxDnssd;
+import com.github.druk.rxdnssd.RxDnssdBindable;
+import com.github.druk.rxdnssd.RxDnssdEmbedded;
 import android.util.Log;
+import android.os.Build;
 import com.somepanic.mdns.handlers.DiscoveryRunningHandler;
 import com.somepanic.mdns.handlers.ServiceDiscoveredHandler;
 import com.somepanic.mdns.handlers.ServiceLostHandler;
@@ -29,8 +37,8 @@ public class MdnsPlugin implements MethodCallHandler {
     private final String TAG = getClass().getSimpleName();
     private final static String NAMESPACE = "com.somepanic.mdns";
 
-    private NsdManager mNsdManager;
-    private NsdManager.DiscoveryListener mDiscoveryListener;
+    private static RxDnssd mDnssd;
+    private Subscription mBrowseSubscription;
 
     /**
      * Plugin registration.
@@ -45,15 +53,7 @@ public class MdnsPlugin implements MethodCallHandler {
     private ServiceResolvedHandler mResolvedHandler;
     private ServiceLostHandler mLostHandler;
 
-    private LinkedList<NsdServiceInfo> mToResolve;
-    private Semaphore mResolveSemaphore;
-    private boolean mResolving;
-
     MdnsPlugin(Registrar r) {
-
-        mToResolve = new LinkedList<NsdServiceInfo>();
-        mResolveSemaphore = new Semaphore(1);
-        mResolving = false;
 
         EventChannel serviceDiscoveredChannel = new EventChannel(r.messenger(), NAMESPACE + "/discovered");
         mDiscoveredHandler = new ServiceDiscoveredHandler();
@@ -75,6 +75,13 @@ public class MdnsPlugin implements MethodCallHandler {
         channel.setMethodCallHandler(this);
 
         mRegistrar = r;
+
+        if (Build.VERSION.RELEASE.contains("4.4.2") && Build.MANUFACTURER.toLowerCase().contains("samsung")){
+            Log.i(TAG, "Using embedded version of dns sd because of Samsung 4.4.2");
+            mDnssd = new RxDnssdEmbedded(r.context());
+        } else {
+            mDnssd = new RxDnssdBindable(r.context());
+        }
     }
 
     @Override
@@ -105,99 +112,38 @@ public class MdnsPlugin implements MethodCallHandler {
         }
     }
 
-    private void _checkResolve() {
-        mResolveSemaphore.acquireUninterruptibly();
-        if (mToResolve.isEmpty() || mResolving) {
-            mResolveSemaphore.release();
-            return;
-        }
+    private void _startDiscovery(String serviceName) {
+        stopDiscovery(null, null);
 
-        NsdServiceInfo nsdServiceInfo = mToResolve.removeFirst();
-        mResolving = true;
-        mResolveSemaphore.release();
-
-        Log.d(TAG, "Resolve service : " + nsdServiceInfo.toString());
-        mNsdManager.resolveService(nsdServiceInfo, new NsdManager.ResolveListener() {
-            @Override
-            public void onResolveFailed(NsdServiceInfo nsdServiceInfo, int i) {
-                Log.d(TAG, "Failed to resolve service : " + i + ": " + nsdServiceInfo.toString());
-                mResolveSemaphore.acquireUninterruptibly();
-                mResolving = false;
-                mResolveSemaphore.release();
-                _checkResolve();
-            }
-
-            @Override
-            public void onServiceResolved(NsdServiceInfo nsdServiceInfo) {
-                Log.d(TAG, "Resolved service : " + nsdServiceInfo.toString());
-                mResolvedHandler.onServiceResolved(ServiceToMap(nsdServiceInfo));
-                mResolveSemaphore.acquireUninterruptibly();
-                mResolving = false;
-                mResolveSemaphore.release();
-                _checkResolve();
-            }
-        });
-    }
-
-    private void _startDiscovery(String serviceName){
-
-        mNsdManager = (NsdManager)mRegistrar.activity().getSystemService(Context.NSD_SERVICE);
-
-        mDiscoveryListener = new NsdManager.DiscoveryListener(){
-
-            @Override
-            public void onStartDiscoveryFailed(String serviceType, int errorCode) {
-                Log.e(TAG, String.format(Locale.US,
-                        "Discovery failed to start on %s with error : %d", serviceType, errorCode));
-                mDiscoveryRunningHandler.onDiscoveryStopped();
-            }
-
-            @Override
-            public void onStopDiscoveryFailed(String serviceType, int errorCode) {
-                Log.e(TAG, String.format(Locale.US,
-                        "Discovery failed to stop on %s with error : %d", serviceType, errorCode));
-                mDiscoveryRunningHandler.onDiscoveryStarted();
-            }
-
-            @Override
-            public void onDiscoveryStarted(String serviceType) {
-                Log.d(TAG, "Started discovery for : " + serviceType);
-                mDiscoveryRunningHandler.onDiscoveryStarted();
-            }
-
-            @Override
-            public void onDiscoveryStopped(String serviceType) {
-                Log.d(TAG, "Stopped discovery for : " + serviceType);
-                mDiscoveryRunningHandler.onDiscoveryStopped();
-            }
-
-            @Override
-            public void onServiceFound(NsdServiceInfo nsdServiceInfo) {
-                Log.d(TAG, "Found Service : " + nsdServiceInfo.toString());
-                mDiscoveredHandler.onServiceDiscovered(ServiceToMap(nsdServiceInfo));
-
-                mResolveSemaphore.acquireUninterruptibly();
-                mToResolve.add(nsdServiceInfo);
-                mResolveSemaphore.release();
-                _checkResolve();
-            }
-
-            @Override
-            public void onServiceLost(NsdServiceInfo nsdServiceInfo) {
-                Log.d(TAG, "Lost Service : " + nsdServiceInfo.toString());
-                mLostHandler.onServiceLost(ServiceToMap(nsdServiceInfo));
-            }
-        };
-
-        mNsdManager.discoverServices(serviceName, NsdManager.PROTOCOL_DNS_SD, mDiscoveryListener);
+        mBrowseSubscription = mDnssd.browse(serviceName, "local.")
+            .compose(mDnssd.resolve())
+            .compose(mDnssd.queryIPRecords())
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(new Action1<BonjourService>() {
+                @Override
+                public void call(BonjourService bonjourService) {
+                    if (bonjourService.isLost()) {
+                        Log.d(TAG, "Lost Service : " + bonjourService.toString());
+                        mLostHandler.onServiceLost(ServiceToMap(bonjourService));
+                    } else {
+                        Log.d(TAG, "Found Service : " + bonjourService.toString());
+                        mDiscoveredHandler.onServiceDiscovered(ServiceToMap(bonjourService));
+                        mResolvedHandler.onServiceResolved(ServiceToMap(bonjourService));
+                    }
+                }
+            }, new Action1<Throwable>() {
+                @Override
+                public void call(Throwable throwable) {
+                    Log.e(TAG, "error", throwable);
+                }
+            });
     }
 
     private void stopDiscovery(MethodCall call, Result result){
-        if (mNsdManager != null && mDiscoveryListener != null) {
-            mNsdManager.stopServiceDiscovery(mDiscoveryListener);
-        } else {
-            result.error("IllegalState", "NetworkDiscovery is not running", null);
-        }
+        if (mBrowseSubscription != null)
+            mBrowseSubscription.unsubscribe();
+        mBrowseSubscription = null;
     }
 
     /**
@@ -206,19 +152,15 @@ public class MdnsPlugin implements MethodCallHandler {
      * @param info The ServiceInfo to convert
      * @return The map that can be interpreted by Flutter and sent back on an EventChannel
      */
-    private static Map<String, Object> ServiceToMap(NsdServiceInfo info) {
+    private static Map<String, Object> ServiceToMap(BonjourService info) {
         Map<String, Object> map = new HashMap<>();
 
         map.put("name", info.getServiceName() != null ? info.getServiceName() : "");
-        map.put("type", info.getServiceType() != null ? info.getServiceType() : "");
-        map.put("host", info.getHost() != null ? info.getHost().toString() : "");
+        map.put("type", info.getRegType() != null ? info.getRegType() : "");
+        map.put("host", "/" + info.getInet4Address() != null ? info.getInet4Address().getHostAddress() : "");
         map.put("port", info.getPort());
 
-        Map<String, String> txtRecords = new HashMap<>();
-        for (Map.Entry<String, byte[]> attribute: info.getAttributes().entrySet())
-            txtRecords.put(attribute.getKey(),
-                    attribute.getValue() != null ? new String(attribute.getValue()) : "");
-        map.put("txtRecords", txtRecords);
+        map.put("txtRecords", info.getTxtRecords());
 
         return map;
     }
