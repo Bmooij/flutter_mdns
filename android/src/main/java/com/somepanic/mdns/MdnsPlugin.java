@@ -157,7 +157,7 @@ public class MdnsPlugin implements MethodCallHandler {
 
         map.put("name", info.getServiceName() != null ? info.getServiceName() : "");
         map.put("type", info.getRegType() != null ? info.getRegType() : "");
-        map.put("host", "/" + info.getInet4Address() != null ? info.getInet4Address().getHostAddress() : "");
+        map.put("host", "/" + (info.getInet4Address() != null ? info.getInet4Address().getHostAddress() : ""));
         map.put("port", info.getPort());
 
         map.put("txtRecords", info.getTxtRecords());
