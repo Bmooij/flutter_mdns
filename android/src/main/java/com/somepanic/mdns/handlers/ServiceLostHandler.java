@@ -1,7 +1,8 @@
 package com.somepanic.mdns.handlers;
 
 import io.flutter.plugin.common.EventChannel;
-
+import android.os.Handler;
+import android.os.Looper;
 import java.util.Map;
 
 public class ServiceLostHandler implements EventChannel.StreamHandler {
@@ -16,7 +17,13 @@ public class ServiceLostHandler implements EventChannel.StreamHandler {
 
     }
 
-    public void onServiceLost(Map<String, Object> serviceInfoMap){
-        sink.success(serviceInfoMap);
+    public void onServiceLost(final Map<String, Object> serviceInfoMap){
+        final Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new Runnable() {
+            @Override
+            public void run () {
+                sink.success(serviceInfoMap);
+            }
+        });
     }
 }

@@ -1,6 +1,8 @@
 package com.somepanic.mdns.handlers;
 
 import io.flutter.plugin.common.EventChannel;
+import android.os.Handler;
+import android.os.Looper;
 
 public class DiscoveryRunningHandler implements EventChannel.StreamHandler {
     EventChannel.EventSink sink;
@@ -15,10 +17,22 @@ public class DiscoveryRunningHandler implements EventChannel.StreamHandler {
     }
 
     public void onDiscoveryStopped(){
-        sink.success(false);
+        final Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new Runnable() {
+            @Override
+            public void run () {
+                sink.success(false);
+            }
+        });
     }
 
     public void onDiscoveryStarted(){
-        sink.success(true);
+        final Handler handler = new Handler(Looper.getMainLooper());
+        handler.post(new Runnable() {
+            @Override
+            public void run () {
+                sink.success(true);
+            }
+        });
     }
 }
