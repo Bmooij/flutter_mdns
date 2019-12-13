@@ -19,6 +19,7 @@ flutter:
   plugin:
     androidPackage: com.somepanic.mdns
     pluginClass: MdnsPlugin
+    androidX: true
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
