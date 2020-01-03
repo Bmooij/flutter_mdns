@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 class ServiceInfo{
   String name;
@@ -97,6 +98,8 @@ class Mdns {
   Mdns({this.discoveryCallbacks, this.advertiseCallbacks}){
 
     if ( discoveryCallbacks != null ) {
+      WidgetsFlutterBinding.ensureInitialized();
+
       //Configure all the discovery related callbacks and event channels
       _serviceDiscoveredChannel.receiveBroadcastStream().listen((data) {
         print("Service discovered ${data.toString()}");
